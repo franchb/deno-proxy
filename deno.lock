@@ -8,6 +8,7 @@
     "jsr:@std/fs@^1.0.19": "1.0.19",
     "jsr:@std/html@^1.0.5": "1.0.5",
     "jsr:@std/http@*": "1.0.21",
+    "jsr:@std/http@^1.0.21": "1.0.21",
     "jsr:@std/internal@^1.0.10": "1.0.12",
     "jsr:@std/internal@^1.0.12": "1.0.12",
     "jsr:@std/media-types@^1.1.0": "1.1.0",
@@ -70,9 +71,14 @@
       "integrity": "772d208cd0d3e5dac7c1d9e6cdb25842846d136eea4a41a62e44ed4ab0c8dd9e"
     }
   },
+  "remote": {
+    "https://deno.land/std@0.224.0/async/delay.ts": "f90dd685b97c2f142b8069082993e437b1602b8e2561134827eeb7c12b95c499",
+    "https://deno.land/std@0.224.0/http/server.ts": "f9313804bf6467a1704f45f76cb6cd0a3396a3b31c316035e6a4c2035d1ea514"
+  },
   "workspace": {
     "dependencies": [
-      "jsr:@std/assert@^1.0.15"
+      "jsr:@std/assert@^1.0.15",
+      "jsr:@std/http@^1.0.21"
     ]
   }
 }
