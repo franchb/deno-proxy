@@ -103,8 +103,6 @@ Deno.serve(async (request: Request, info: Deno.ServeHandlerInfo) => {
         targetUrl.port = '';
         targetUrl.pathname = '/' + pathSegments.join('/');
 
-        console.log(targetUrl.toString())
-
         const newRequest = new Request(targetUrl.toString(), {
             headers: fwdHeaders,
             method: request.method,
