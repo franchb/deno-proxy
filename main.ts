@@ -1,3 +1,40 @@
+// ===================================================================
+// 1. CONFIGURATION (from Environment Variables)
+// ===================================================================
+// Whitelist of allowed hosts (e.g., "mcp.exa.ai,*.github.com,deno.land")
+const allowedHostsVar = Deno.env.get("ALLOWED_HOSTS") || "";
+const ALLOWED_HOST_PATTERNS = allowedHostsVar.split(',').filter(h => h);
+
+// Request timeout in milliseconds
+const PROXY_TIMEOUT_MS = parseInt(Deno.env.get("PROXY_TIMEOUT_MS") || "600000", 10);  // 10 minute
+
+// Rate limiting settings
+const RATE_LIMIT_WINDOW_MS = parseInt(Deno.env.get("RATE_LIMIT_WINDOW_MS") || "60000", 10); // 1 minute
+const RATE_LIMIT_MAX_REQUESTS = parseInt(Deno.env.get("RATE_LIMIT_MAX_REQUESTS") || "1000", 10); // 1000 requests per minute
+
+// ===================================================================
+// 2. SECURITY PRE-COMPILATION & STATE
+// ===================================================================
+
+// --- Whitelist Regex Pre-compilation ---
+function patternToRegExp(pattern: string): RegExp {
+    const regexString = pattern
+        .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
+        .replace(/\*/g, '[^.]+');
+    return new RegExp(`^${regexString}$`);
+}
+const ALLOWED_HOST_REGEXPS = ALLOWED_HOST_PATTERNS.map(patternToRegExp);
+
+// --- Hostname Validation Regex ---
+const IS_VALID_HOSTNAME = /^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9-]*[A-Za-z0-9])$/;
+
+// --- Rate Limiting State (In-memory) ---
+const requestTimestamps = new Map<string, number[]>();
+
+// ===================================================================
+// 3. MAIN SERVER LOGIC
+// ===================================================================
+
 Deno.serve(async (request: Request, info: Deno.ServeHandlerInfo) => {
     const url = new URL(request.url);
     const clientIp = info.remoteAddr.hostname;
