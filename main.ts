@@ -104,18 +104,34 @@ Deno.serve(async (request: Request, info: Deno.ServeHandlerInfo) => {
         targetUrl.pathname = '/' + pathSegments.join('/');
 
         // Directly return the promise from fetch. This supports streaming.
-        const responsePromise = fetch(targetUrl.toString(), {
-            headers: fwdHeaders,
-            method: request.method,
-            body: request.body,
-            redirect: "follow",
-            signal: controller.signal,
-        });
-        
-        // Clear the timeout once the response is received
-        responsePromise.then(() => clearTimeout(timeoutId)).catch(() => clearTimeout(timeoutId));
-        
-        return await responsePromise;
++        let upstreamResponse: Response;
++        try {
++            upstreamResponse = await fetch(targetUrl.toString(), {
++                headers: fwdHeaders,
++                method: request.method,
++                body: request.body,
++                redirect: "follow",
++                signal: controller.signal,
++            });
++        } finally {
++            clearTimeout(timeoutId);
++        }
++
++        const sanitizedHeaders = new Headers(upstreamResponse.headers);
++        const blockedResponseHeaders = [
++            "set-cookie",
++            "proxy-authenticate",
++            "www-authenticate",
++            "server",
++            "x-powered-by",
++        ];
++        blockedResponseHeaders.forEach((header) => sanitizedHeaders.delete(header));
++
++        return new Response(upstreamResponse.body, {
++            status: upstreamResponse.status,
++            statusText: upstreamResponse.statusText,
++            headers: sanitizedHeaders,
++        });        
 
     } catch (error) {
         clearTimeout(timeoutId); 
