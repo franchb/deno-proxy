@@ -69,7 +69,7 @@ Deno.serve(async (request: Request, info: Deno.ServeHandlerInfo) => {
     }
 
     // --- Layer 4: Whitelist Enforcement ---
-    const isAllowed = ALLOWED_HOST_REGEXPS.some(regex => regex.test(targetHost));
+    const isAllowed = ALLOWED_HOST_REGEXPS.some((regex: { test: (arg0: string) => any; }) => regex.test(targetHost));
     if (!isAllowed) {
         console.warn(JSON.stringify({
             level: "WARN", timestamp: new Date().toISOString(), message: "Forbidden proxy attempt to non-whitelisted host",
@@ -101,37 +101,38 @@ Deno.serve(async (request: Request, info: Deno.ServeHandlerInfo) => {
         targetUrl.protocol = 'https:';
         targetUrl.host = targetHost;
         targetUrl.port = '';
-        targetUrl.pathname = '/' + pathSegments.join('/');
+        targetUrl.pathname = '/';
+        pathSegments.join('/');
 
         // Directly return the promise from fetch. This supports streaming.
-+        let upstreamResponse: Response;
-+        try {
-+            upstreamResponse = await fetch(targetUrl.toString(), {
-+                headers: fwdHeaders,
-+                method: request.method,
-+                body: request.body,
-+                redirect: "follow",
-+                signal: controller.signal,
-+            });
-+        } finally {
-+            clearTimeout(timeoutId);
-+        }
-+
-+        const sanitizedHeaders = new Headers(upstreamResponse.headers);
-+        const blockedResponseHeaders = [
-+            "set-cookie",
-+            "proxy-authenticate",
-+            "www-authenticate",
-+            "server",
-+            "x-powered-by",
-+        ];
-+        blockedResponseHeaders.forEach((header) => sanitizedHeaders.delete(header));
-+
-+        return new Response(upstreamResponse.body, {
-+            status: upstreamResponse.status,
-+            statusText: upstreamResponse.statusText,
-+            headers: sanitizedHeaders,
-+        });        
+       let upstreamResponse: Response;
+       try {
+           upstreamResponse = await fetch(targetUrl.toString(), {
+               headers: fwdHeaders,
+               method: request.method,
+               body: request.body,
+               redirect: "follow",
+               signal: controller.signal,
+           });
+       } finally {
+           clearTimeout(timeoutId);
+       }
+
+       const sanitizedHeaders = new Headers(upstreamResponse.headers);
+       const blockedResponseHeaders = [
+           "set-cookie",
+           "proxy-authenticate",
+           "www-authenticate",
+           "server",
+           "x-powered-by",
+       ];
+       blockedResponseHeaders.forEach((header) => sanitizedHeaders.delete(header));
+
+       return new Response(upstreamResponse.body, {
+           status: upstreamResponse.status,
+           statusText: upstreamResponse.statusText,
+           headers: sanitizedHeaders,
+       });        
 
     } catch (error) {
         clearTimeout(timeoutId); 
