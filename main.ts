@@ -135,7 +135,8 @@ Deno.serve(async (request: Request, info: Deno.ServeHandlerInfo) => {
        });        
 
     } catch (error) {
-        clearTimeout(timeoutId); 
+    } catch (error) {
+        const errPayload = {
         const errPayload = {
             level: "ERROR", timestamp: new Date().toISOString(), message: "Error fetching target host",
             clientIp, targetHost, error: error.message
