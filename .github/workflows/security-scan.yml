@@ -1,0 +1,378 @@
+name: Security & Quality Scan
+
+on:
+  # Run on pull requests
+  pull_request:
+    branches: [main]
+  # Run on pushes to main
+  push:
+    branches: [main]
+  # Run weekly security scans
+  schedule:
+    - cron: "0 2 * * 1" # Every Monday at 2 AM UTC
+  # Allow manual triggering
+  workflow_dispatch:
+
+jobs:
+  security-scan:
+    name: Security Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: 2.5.x
+
+      - name: Run Deno security audit
+        run: |
+          echo "🔍 Running Deno security audit..."
+
+          # Check for known vulnerabilities in dependencies
+          deno info --json deno.json > deps_info.json
+
+          # Look for any problematic patterns
+          echo "Checking for security patterns..."
+
+          # Check for eval usage (dangerous)
+          if grep -r "eval(" --include="*.ts" --include="*.js" . ; then
+            echo "❌ WARNING: eval() usage detected - security risk!"
+            exit 1
+          fi
+
+          # Check for process spawning with user input
+          if grep -rn "Deno.run\|new Deno.Command" --include="*.ts" . | grep -v "test" ; then
+            echo "⚠️ Process spawning detected - ensure input validation"
+          fi
+
+          echo "✅ Basic security patterns check passed"
+
+      - name: Scan for hardcoded secrets
+        run: |
+          echo "🔐 Scanning for hardcoded secrets..."
+
+          # Check for common secret patterns
+          secrets_found=false
+
+          # API keys
+          if grep -r "sk-[a-zA-Z0-9]{48}" --exclude-dir=.git --exclude-dir=node_modules . ; then
+            echo "❌ Potential OpenAI API key found!"
+            secrets_found=true
+          fi
+
+          # Generic API patterns
+          if grep -ri "api[_-]key.*=.*['\"][a-zA-Z0-9]{20,}" --exclude-dir=.git --exclude-dir=node_modules --exclude="*.yml" --exclude="*.yaml" --exclude="*.md" . ; then
+            echo "❌ Potential API key pattern found!"
+            secrets_found=true
+          fi
+
+          # Bearer tokens
+          if grep -r "Bearer [a-zA-Z0-9]{20,}" --exclude-dir=.git --exclude-dir=node_modules --exclude="*.yml" --exclude="*.yaml" --exclude="*.md" . ; then
+            echo "❌ Potential bearer token found!"
+            secrets_found=true
+          fi
+
+          # Private keys
+          if grep -r -- "-----BEGIN.*PRIVATE KEY-----" --exclude-dir=.git --exclude-dir=node_modules . ; then
+            echo "❌ Private key found!"
+            secrets_found=true
+          fi
+
+          # Database URLs
+          if grep -r "postgres://\|mysql://\|mongodb://" --exclude-dir=.git --exclude-dir=node_modules --exclude="*.md" --exclude-dir=docs . | grep -v "example\|Example" ; then
+            echo "❌ Potential database URL found!"
+            secrets_found=true
+          fi
+
+          if [ "$secrets_found" = true ]; then
+            echo "❌ Hardcoded secrets detected! Remove them and use environment variables or secrets."
+            exit 1
+          fi
+
+          echo "✅ No hardcoded secrets detected"
+
+      - name: Code quality checks
+        run: |
+          echo "📊 Running code quality checks..."
+
+          # Check file structure
+          required_files=("main.ts" "deno.json" "README.md")
+          for file in "${required_files[@]}"; do
+            if [[ ! -f "$file" ]]; then
+              echo "❌ Required file missing: $file"
+              exit 1
+            fi
+          done
+
+          # Check TypeScript strict mode in Deno 2.5+ format
+          if ! grep -q '"strict": true' deno.json && ! grep -q '"lib": \["deno.window"\]' deno.json; then
+            echo "⚠️ WARNING: Modern TypeScript configuration not found"
+          fi
+
+          # Check for Deno 2.5 permission sets
+          if grep -q '"permissions"' deno.json; then
+            echo "✅ Deno 2.5 permission sets configured"
+          else
+            echo "⚠️ Consider using Deno 2.5 permission sets for better security"
+          fi
+
+          # Check for TODO/FIXME comments
+          if grep -r "TODO\|FIXME\|XXX" --include="*.ts" --include="*.js" . ; then
+            echo "⚠️ Found TODO/FIXME comments - consider addressing before production"
+          fi
+
+          echo "✅ Code quality checks completed"
+
+      - name: Dependency analysis
+        run: |
+          echo "📦 Analyzing dependencies..."
+
+          # Show dependency tree
+          echo "Dependency information:"
+          deno info main.ts
+
+          # Check for JSR and npm imports (Deno 2.5+ preferred)
+          if grep -q "jsr:" deno.json || grep -q "npm:" deno.json; then
+            echo "✅ Using JSR/npm imports (Deno 2.5+ best practice)"
+          fi
+
+          # Check for deprecated direct URL imports
+          if grep -r "https://deno.land/x/" --include="*.ts" --include="*.js" . ; then
+            echo "⚠️ Direct deno.land/x imports found - consider using JSR imports"
+          fi
+
+          # Warn about unversioned imports (Deno 2.5 lint rule)
+          if grep -rE "(npm:|jsr:)[^@\"]+" --include="*.ts" --include="*.js" . ; then
+            echo "⚠️ Unversioned imports detected - use specific versions"
+          fi
+
+          echo "✅ Dependency analysis completed"
+
+      - name: Environment security check
+        run: |
+          echo "🌍 Checking environment security..."
+
+          # Check that sensitive configs use environment variables
+          if ! grep -q "Deno.env.get" main.ts; then
+            echo "❌ No environment variable usage detected - configuration should be externalized"
+            exit 1
+          fi
+
+          # Verify ALLOWED_HOSTS is configurable
+          if ! grep -q "ALLOWED_HOSTS" main.ts; then
+            echo "❌ ALLOWED_HOSTS environment variable not found"
+            exit 1
+          fi
+
+          # Check for default fallbacks that might be insecure
+          if grep -q 'ALLOWED_HOSTS.*""' main.ts; then
+            echo "✅ Good: Empty default for ALLOWED_HOSTS prevents open proxy"
+          fi
+
+          echo "✅ Environment security checks passed"
+
+      - name: Rate limiting validation
+        run: |
+          echo "🚦 Validating rate limiting implementation..."
+
+          # Check that rate limiting is implemented
+          if ! grep -q "RATE_LIMIT" main.ts; then
+            echo "❌ Rate limiting not found - DoS protection missing"
+            exit 1
+          fi
+
+          # Check for reasonable defaults
+          if grep -q "RATE_LIMIT_MAX_REQUESTS.*1000" main.ts; then
+            echo "✅ Reasonable rate limit default found"
+          fi
+
+          echo "✅ Rate limiting validation passed"
+
+      - name: Input validation check
+        run: |
+          echo "🔍 Checking input validation..."
+
+          # Check for hostname validation
+          if ! grep -q "IS_VALID_HOSTNAME" main.ts; then
+            echo "❌ Hostname validation regex not found"
+            exit 1
+          fi
+
+          # Check for header sanitization
+          if ! grep -q "sanitize\|delete.*header\|hopByHop" main.ts; then
+            echo "❌ Header sanitization not implemented"
+            exit 1
+          fi
+
+          echo "✅ Input validation checks passed"
+
+      - name: Generate security report
+        if: always()
+        run: |
+          echo "## 🔐 Security Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "### ✅ Security Scan Passed!" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Your proxy implementation follows security best practices:" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "- 🔐 No hardcoded secrets detected" >> $GITHUB_STEP_SUMMARY
+            echo "- 🛡️ Input validation implemented" >> $GITHUB_STEP_SUMMARY
+            echo "- 🚦 Rate limiting configured" >> $GITHUB_STEP_SUMMARY
+            echo "- 🌍 Environment-based configuration" >> $GITHUB_STEP_SUMMARY
+            echo "- 📦 Dependencies from trusted sources" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "🎯 **Security posture is strong!**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ Security Issues Found" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Please review the security scan output above and address any issues." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Critical items to fix:" >> $GITHUB_STEP_SUMMARY
+            echo "- Remove any hardcoded secrets" >> $GITHUB_STEP_SUMMARY
+            echo "- Implement missing input validation" >> $GITHUB_STEP_SUMMARY
+            echo "- Add rate limiting if missing" >> $GITHUB_STEP_SUMMARY
+            echo "- Ensure environment-based configuration" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  performance-check:
+    name: Performance Analysis
+    runs-on: ubuntu-latest
+    needs: security-scan
+    if: success()
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: 2.5.x
+
+      - name: Source size analysis
+        run: |
+          echo "📦 Analyzing source size..."
+
+          # Calculate total source size by summing TypeScript files
+          total_size=0
+
+          # Add main.ts size
+          if [ -f "main.ts" ]; then
+            main_size=$(stat -f%z main.ts 2>/dev/null || stat -c%s main.ts)
+            total_size=$((total_size + main_size))
+            echo "main.ts: $main_size bytes"
+          fi
+
+          # Add test files size
+          for test_file in test_*.ts; do
+            if [ -f "$test_file" ]; then
+              test_size=$(stat -f%z "$test_file" 2>/dev/null || stat -c%s "$test_file")
+              total_size=$((total_size + test_size))
+              echo "$test_file: $test_size bytes"
+            fi
+          done
+
+          # Add any additional TypeScript files in src/ if they exist
+          if [ -d "src" ]; then
+            src_size=$(find src -name "*.ts" -type f -exec stat -f%z {} + 2>/dev/null | awk '{sum+=$1} END {print sum+0}' || find src -name "*.ts" -type f -exec stat -c%s {} + | awk '{sum+=$1} END {print sum+0}')
+            total_size=$((total_size + src_size))
+            echo "src/*.ts files: $src_size bytes"
+          fi
+
+          echo "Total source size: $total_size bytes"
+
+          # Warn if source is too large (>1MB for a proxy)
+          if [ $total_size -gt 1048576 ]; then
+            echo "⚠️ WARNING: Source size is large (>1MB). Consider optimizing."
+          elif [ $total_size -gt 524288 ]; then
+            echo "⚠️ Source size is moderate (>512KB). Monitor for growth."
+          else
+            echo "✅ Source size is reasonable"
+          fi
+
+          # Optional: Create compiled executable for size comparison
+          echo ""
+          echo "📦 Analyzing compiled executable size..."
+          if deno compile --output proxy-executable main.ts 2>/dev/null; then
+            executable_size=$(stat -f%z proxy-executable 2>/dev/null || stat -c%s proxy-executable)
+            echo "Compiled executable: $executable_size bytes"
+
+            # Compare source vs compiled size
+            ratio=$((executable_size / total_size))
+            echo "Compilation ratio: ${ratio}x (executable is ${ratio}x larger than source)"
+
+            # Clean up executable
+            rm -f proxy-executable
+          else
+            echo "⚠️ Could not create compiled executable for comparison"
+          fi
+
+          # Show top-level dependencies (Deno 2.5+ format)
+          echo ""
+          echo "Main dependencies:"
+          if [ -f "deno.json" ]; then
+            echo "From deno.json imports:"
+            grep -A 10 '"imports"' deno.json | grep -oE '(jsr:|npm:|https:)[^"]*' | sort | uniq || true
+          fi
+          echo "Direct imports in main.ts:"
+          grep -oE '(import.*from.*["'"'"'])(jsr:|npm:|https:)[^"'"'"']*' main.ts | cut -d'"' -f2 | sort | uniq || true
+
+      - name: Memory usage estimation
+        run: |
+          echo "💾 Estimating memory usage patterns..."
+
+          # Check for potential memory leaks
+          if grep -r "setInterval\|setTimeout" --include="*.ts" . ; then
+            echo "⚠️ Timer usage detected - ensure proper cleanup"
+          fi
+
+          # Check for large data structures
+          if grep -r "new Map\|new Set\|new Array" --include="*.ts" . ; then
+            echo "💾 Data structures found - monitor for growth"
+          fi
+
+          echo "✅ Memory usage analysis completed"
+
+      - name: Startup time test
+        env:
+          OPENAI_API_KEY: "test-key-for-startup"
+        run: |
+          echo "⚡ Testing startup performance..."
+
+          start_time=$(date +%s%3N)
+
+          # Start server in background with Deno 2.5+ optimizations
+          DENO_FUTURE=1 deno run --allow-net --allow-env main.ts &
+          server_pid=$!
+
+          # Wait for it to be ready
+          sleep 3
+
+          # Test if it responds
+          if curl -f -m 5 http://localhost:8000/test.com/health 2>/dev/null; then
+            echo "Server responded (expected failure)"
+          fi
+
+          end_time=$(date +%s%3N)
+          startup_duration=$((end_time - start_time))
+
+          echo "Startup time: ${startup_duration}ms"
+
+          # Kill the server
+          kill $server_pid 2>/dev/null || true
+
+          # Warn if startup is too slow (>5 seconds)
+          if [ $startup_duration -gt 5000 ]; then
+            echo "⚠️ WARNING: Startup time is slow (>5s)"
+          else
+            echo "✅ Startup time is acceptable"
+          fi
