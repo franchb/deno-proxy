@@ -258,34 +258,6 @@ jobs:
         with:
           deno-version: 2.5.x
 
-      - name: Bundle size analysis
-        run: |
-          echo "📦 Analyzing bundle size..."
-
-          # Create a bundle to check size
-          deno bundle main.ts bundle.js
-
-          bundle_size=$(stat -f%z bundle.js 2>/dev/null || stat -c%s bundle.js)
-          echo "Bundle size: $bundle_size bytes"
-
-          # Warn if bundle is too large (>1MB for a proxy)
-          if [ $bundle_size -gt 1048576 ]; then
-            echo "⚠️ WARNING: Bundle size is large (>1MB). Consider optimizing."
-          elif [ $bundle_size -gt 524288 ]; then
-            echo "⚠️ Bundle size is moderate (>512KB). Monitor for growth."
-          else
-            echo "✅ Bundle size is reasonable"
-          fi
-
-          # Show top-level dependencies (Deno 2.5+ format)
-          echo "Main dependencies:"
-          if [ -f "deno.json" ]; then
-            echo "From deno.json imports:"
-            grep -A 10 '"imports"' deno.json | grep -oE '(jsr:|npm:|https:)[^"]*' | sort | uniq || true
-          fi
-          echo "Direct imports in main.ts:"
-          grep -oE '(import.*from.*["'"'"'])(jsr:|npm:|https:)[^"'"'"']*' main.ts | cut -d'"' -f2 | sort | uniq || true
-
       - name: Memory usage estimation
         run: |
           echo "💾 Estimating memory usage patterns..."
