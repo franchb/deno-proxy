@@ -7,6 +7,7 @@ This implementation provides a comprehensive test suite for validating a Deno-ba
 ## Major Technical Components
 
 ### 1. **Proxy Server Architecture** (`main.ts`)
+
 - **Multi-layer security validation**: Rate limiting, hostname validation, whitelist enforcement
 - **Header sanitization**: Proper handling of hop-by-hop headers and security headers
 - **Request forwarding**: Correctly reconstructs target URLs from path segments
@@ -14,6 +15,7 @@ This implementation provides a comprehensive test suite for validating a Deno-ba
 - **Error handling**: Comprehensive timeout and connection error management
 
 ### 2. **Test Implementation** (`test_openai_responses.ts`)
+
 - **Process management**: Automated proxy server lifecycle management for testing
 - **Comprehensive API coverage**: Tests all major OpenAI endpoints through proxy
 - **Security validation**: Verifies whitelist enforcement and attack prevention
@@ -21,6 +23,7 @@ This implementation provides a comprehensive test suite for validating a Deno-ba
 - **Error propagation**: Ensures OpenAI errors are properly forwarded
 
 ### 3. **Test Infrastructure** (`run_tests.ts`)
+
 - **Environment validation**: Checks for required API keys and configuration
 - **Configuration management**: Automatically sets test-appropriate environment variables
 - **User-friendly output**: Clear test status and error reporting
@@ -31,7 +34,8 @@ This implementation provides a comprehensive test suite for validating a Deno-ba
 
 1. **Security-First Design**:
    ```typescript
-   const IS_VALID_HOSTNAME = /^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9-]*[A-Za-z0-9])$/;
+   const IS_VALID_HOSTNAME =
+     /^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9-]*[A-Za-z0-9])$/;
    ```
    Proper hostname validation prevents path traversal attacks.
 
@@ -86,9 +90,12 @@ This implementation provides a comprehensive test suite for validating a Deno-ba
 2. **Implement Structured Logging**:
    ```typescript
    const logger = {
-     info: (data: any) => console.log(JSON.stringify({...data, level: "INFO"})),
-     warn: (data: any) => console.warn(JSON.stringify({...data, level: "WARN"})),
-     error: (data: any) => console.error(JSON.stringify({...data, level: "ERROR"}))
+     info: (data: any) =>
+       console.log(JSON.stringify({ ...data, level: "INFO" })),
+     warn: (data: any) =>
+       console.warn(JSON.stringify({ ...data, level: "WARN" })),
+     error: (data: any) =>
+       console.error(JSON.stringify({ ...data, level: "ERROR" })),
    };
    ```
 
@@ -104,7 +111,7 @@ This implementation provides a comprehensive test suite for validating a Deno-ba
    const mockOpenAIServer = new MockServer({
      host: "localhost",
      port: 8080,
-     responses: mockOpenAIResponses
+     responses: mockOpenAIResponses,
    });
    ```
 
@@ -140,18 +147,21 @@ This implementation provides a comprehensive test suite for validating a Deno-ba
 ## Practical Implementation Considerations
 
 ### **Security Model**
+
 - ✅ Whitelist-based host filtering prevents open proxy abuse
 - ✅ Rate limiting protects against DoS attacks
 - ✅ Header sanitization prevents header injection
 - ✅ Timeout handling prevents resource exhaustion
 
 ### **API Compatibility**
+
 - ✅ Maintains full OpenAI API compatibility
 - ✅ Preserves streaming responses
 - ✅ Forwards authentication headers correctly
 - ✅ Maintains error response structure
 
 ### **Operational Concerns**
+
 - ✅ JSON logging for structured monitoring
 - ✅ Configurable via environment variables
 - ✅ Graceful error handling and reporting
@@ -160,16 +170,19 @@ This implementation provides a comprehensive test suite for validating a Deno-ba
 ## Potential Pitfalls and Edge Cases
 
 ### **Network-Level Issues**
+
 1. **DNS Resolution**: Target host DNS failures should be handled gracefully
 2. **SSL/TLS**: Certificate validation for target hosts
 3. **IPv6 Support**: Current implementation may not handle IPv6 addresses
 
 ### **OpenAI API Specific**
+
 1. **Rate Limits**: OpenAI has its own rate limits that may trigger
 2. **Token Limits**: Large requests may exceed OpenAI's token limits
 3. **Model Availability**: Some models may not be available to all API keys
 
 ### **Proxy-Specific**
+
 1. **Content-Length**: Large streaming responses need proper handling
 2. **Connection Pooling**: Multiple concurrent requests to same host
 3. **WebSocket Support**: Current implementation doesn't support WebSocket upgrades
@@ -178,11 +191,11 @@ This implementation provides a comprehensive test suite for validating a Deno-ba
 
 This is a well-architected, production-ready implementation that successfully addresses the core requirements:
 
-✅ **Technical Accuracy**: All API interactions follow OpenAI specifications  
-✅ **Security Implementation**: Comprehensive security controls prevent common attack vectors  
-✅ **Test Coverage**: Thorough testing validates both positive and negative scenarios  
-✅ **Code Quality**: Clean, maintainable code with proper error handling  
-✅ **Documentation**: Clear setup instructions and usage examples  
+✅ **Technical Accuracy**: All API interactions follow OpenAI specifications\
+✅ **Security Implementation**: Comprehensive security controls prevent common attack vectors\
+✅ **Test Coverage**: Thorough testing validates both positive and negative scenarios\
+✅ **Code Quality**: Clean, maintainable code with proper error handling\
+✅ **Documentation**: Clear setup instructions and usage examples
 
 The implementation demonstrates advanced understanding of proxy architecture, API integration patterns, and comprehensive testing strategies. The test suite provides excellent validation coverage while minimizing API costs through efficient test design.
 

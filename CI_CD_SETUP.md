@@ -5,6 +5,7 @@ This document provides a comprehensive guide for setting up Continuous Integrati
 ## Overview
 
 The CI/CD pipeline automatically:
+
 - Tests proxy functionality against OpenAI API on every PR and merge
 - Performs security scans and code quality checks
 - Validates compatibility across multiple Deno versions
@@ -13,6 +14,7 @@ The CI/CD pipeline automatically:
 ## 🚀 Quick Setup
 
 ### 1. Fork the Repository
+
 ```bash
 # Fork the repository on GitHub, then clone your fork
 git clone https://github.com/YOUR_USERNAME/deno-proxy.git
@@ -20,6 +22,7 @@ cd deno-proxy
 ```
 
 ### 2. Add OpenAI API Key Secret
+
 1. Go to your GitHub repository
 2. Navigate to **Settings → Secrets and variables → Actions**
 3. Click **"New repository secret"**
@@ -28,10 +31,12 @@ cd deno-proxy
    - **Value**: Your OpenAI API key (starts with `sk-`)
 
 ### 3. Enable Actions (if needed)
+
 - GitHub Actions are enabled by default for forks
 - Check the **Actions** tab to confirm workflows are active
 
 ### 4. Test the Setup
+
 ```bash
 # Make a small change and push to trigger CI
 echo "# Test CI" >> README.md
@@ -45,14 +50,16 @@ git push origin main
 ### Primary Test Workflow (`test-proxy.yml`)
 
 **Triggers**:
+
 - Pull requests to `main` branch
 - Pushes to `main` branch
 - Manual dispatch via GitHub UI
 
 **What it tests**:
+
 - ✅ Proxy server startup and connectivity
 - ✅ Host whitelist enforcement
-- ✅ Invalid hostname rejection  
+- ✅ Invalid hostname rejection
 - ✅ OpenAI API request forwarding
 - ✅ Authentication handling
 - ✅ Custom header forwarding
@@ -64,11 +71,13 @@ git push origin main
 ### Security Workflow (`security-scan.yml`)
 
 **Triggers**:
+
 - Pull requests and pushes to `main`
 - Weekly scheduled scans (Mondays 2 AM UTC)
 - Manual dispatch
 
 **Security checks**:
+
 - 🔐 Hardcoded secret detection
 - 🛡️ Input validation verification
 - 🚦 Rate limiting implementation
@@ -77,9 +86,15 @@ git push origin main
 
 **Duration**: ~2-3 minutes
 
+**Performance checks**:
+- 📦 Source code size analysis
+- 💾 Memory usage patterns
+- ⚡ Startup performance metrics
+
 ## 🔧 Workflow Configuration
 
 ### Environment Variables
+
 The workflows use these environment variables:
 
 ```yaml
@@ -93,15 +108,17 @@ env:
 ```
 
 ### Permissions Required
+
 ```yaml
 permissions:
-  contents: read          # Read repository content
-  security-events: write  # Write security scan results
+  contents: read # Read repository content
+  security-events: write # Write security scan results
 ```
 
 ## 📊 Understanding Test Results
 
 ### ✅ Successful Test Run
+
 ```
 ✅ All Tests Passed!
 
@@ -118,50 +135,63 @@ Your Deno proxy server is working correctly with OpenAI's API:
 ### ❌ Common Failure Scenarios
 
 #### 1. Missing API Key
+
 ```
 ❌ ERROR: OPENAI_API_KEY secret not set in repository
 ```
+
 **Solution**: Add the secret in repository settings
 
 #### 2. API Key Invalid/Expired
+
 ```
 ❌ Authentication failed: Invalid API key
 ```
+
 **Solution**: Update the secret with a valid OpenAI API key
 
 #### 3. Network/Connectivity Issues
+
 ```
 ❌ Connection failed: tcp connect error
 ```
+
 **Solution**: Usually temporary - retry the workflow
 
 #### 4. TypeScript Compilation Error
+
 ```
 ❌ Check failed: Type checking failed
 ```
+
 **Solution**: Fix TypeScript errors in the code
 
 #### 5. Security Scan Failures
+
 ```
 ❌ Potential hardcoded API key found!
 ```
+
 **Solution**: Remove hardcoded secrets, use environment variables
 
 ## 🔒 Security Best Practices
 
 ### Repository Secrets Management
+
 - **Never commit API keys** to the repository
 - Use **environment variables** for all sensitive configuration
 - **Rotate secrets** regularly
 - **Limit secret access** to necessary workflows only
 
 ### Code Security
+
 - Enable **TypeScript strict mode**
 - Use **input validation** for all user inputs
 - Implement **rate limiting** to prevent abuse
 - **Sanitize headers** to prevent injection attacks
 
 ### Dependency Security
+
 - Use **official Deno standard library** when possible
 - **Pin dependency versions** to avoid supply chain attacks
 - **Regularly update** dependencies
@@ -170,9 +200,11 @@ Your Deno proxy server is working correctly with OpenAI's API:
 ## 🎯 Customizing Workflows
 
 ### Adding New Tests
+
 To add custom tests to the workflow:
 
 1. Create test in `test_openai_responses_simple.ts`:
+
 ```typescript
 await t.step("My custom test", async () => {
   // Your test logic here
@@ -182,6 +214,7 @@ await t.step("My custom test", async () => {
 2. Tests will automatically run in CI
 
 ### Modifying Security Checks
+
 Edit `.github/workflows/security-scan.yml`:
 
 ```yaml
@@ -196,28 +229,32 @@ Edit `.github/workflows/security-scan.yml`:
 strategy:
   matrix:
     environment: [staging, production]
-    deno-version: ['1.40.x', '1.41.x']
+    deno-version: ['2.5.x', '2.6.x']
 ```
 
 ## 🚨 Troubleshooting
 
 ### Workflow Not Running
+
 1. Check if Actions are enabled in repository settings
 2. Verify the workflow files are in `.github/workflows/`
 3. Ensure proper YAML syntax
 4. Check repository permissions
 
 ### Tests Timing Out
+
 1. Increase `timeout-minutes` in workflow
 2. Check for infinite loops or hanging processes
 3. Verify network connectivity in the runner
 
 ### Permission Errors
+
 1. Verify repository secrets are set correctly
 2. Check workflow permissions configuration
 3. Ensure the OpenAI API key has necessary permissions
 
 ### Flaky Tests
+
 1. Add retry logic to unstable network calls
 2. Increase timeouts for slow operations
 3. Add proper cleanup in test teardown
@@ -225,22 +262,27 @@ strategy:
 ## 📈 Monitoring and Metrics
 
 ### GitHub Actions Usage
+
 - Monitor workflow run minutes (2000/month free)
 - Check storage usage for artifacts
 - Review workflow performance trends
 
 ### Test Metrics to Track
+
 - Test execution time trends
 - Failure rate by test type
 - API response time variations
+- Source code size growth over time
 - Security scan results over time
 
 ### Setting Up Notifications
+
 1. **Email Notifications**:
    - GitHub Settings → Notifications → Actions
    - Enable "Email" for workflow failures
 
 2. **Slack Integration**:
+
 ```yaml
 - name: Notify Slack on failure
   if: failure()
@@ -252,6 +294,7 @@ strategy:
 ## 🔄 Deployment Integration
 
 ### Automatic Deployment on Success
+
 ```yaml
 deploy:
   needs: test-proxy
@@ -264,6 +307,7 @@ deploy:
 ```
 
 ### Environment Promotion
+
 ```yaml
 strategy:
   matrix:
@@ -282,7 +326,7 @@ strategy:
 If you encounter issues with the CI/CD setup:
 
 1. **Check workflow logs** in the Actions tab
-2. **Review this documentation** for common solutions  
+2. **Review this documentation** for common solutions
 3. **Open an issue** with detailed error information
 4. **Check GitHub Status** for platform-wide issues
 

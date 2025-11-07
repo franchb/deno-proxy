@@ -33,6 +33,11 @@ const RATE_LIMIT_MAX_REQUESTS = parseInt(
 
 // --- Whitelist Regex Pre-compilation (Deno 2.5 optimized) ---
 function patternToRegExp(pattern: string): RegExp {
+   // Limit wildcards to prevent ReDoS
+  const wildcardCount = (pattern.match(/\*/g) || []).length;
+ if (wildcardCount > 3) {
+   throw new Error(`Pattern "${pattern}" has too many wildcards (max 3)`);
+  };
   const regexString = pattern
     .replace(/[.+?^${}()|[\]\\]/g, "\\$&")
     .replace(/\*/g, "[^.]+");

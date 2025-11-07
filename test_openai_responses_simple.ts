@@ -1,4 +1,4 @@
-import { assertEquals, assertExists, assert } from "@std/assert";
+import { assert, assertEquals, assertExists } from "@std/assert";
 
 // Test configuration with Deno 2.5 environment handling
 const PROXY_PORT = parseInt(Deno.env.get("PROXY_PORT") ?? "8000", 10);

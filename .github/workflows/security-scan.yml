@@ -258,6 +258,74 @@ jobs:
         with:
           deno-version: 2.5.x
 
+      - name: Source size analysis
+        run: |
+          echo "📦 Analyzing source size..."
+
+          # Calculate total source size by summing TypeScript files
+          total_size=0
+
+          # Add main.ts size
+          if [ -f "main.ts" ]; then
+            main_size=$(stat -f%z main.ts 2>/dev/null || stat -c%s main.ts)
+            total_size=$((total_size + main_size))
+            echo "main.ts: $main_size bytes"
+          fi
+
+          # Add test files size
+          for test_file in test_*.ts; do
+            if [ -f "$test_file" ]; then
+              test_size=$(stat -f%z "$test_file" 2>/dev/null || stat -c%s "$test_file")
+              total_size=$((total_size + test_size))
+              echo "$test_file: $test_size bytes"
+            fi
+          done
+
+          # Add any additional TypeScript files in src/ if they exist
+          if [ -d "src" ]; then
+            src_size=$(find src -name "*.ts" -type f -exec stat -f%z {} + 2>/dev/null | awk '{sum+=$1} END {print sum+0}' || find src -name "*.ts" -type f -exec stat -c%s {} + | awk '{sum+=$1} END {print sum+0}')
+            total_size=$((total_size + src_size))
+            echo "src/*.ts files: $src_size bytes"
+          fi
+
+          echo "Total source size: $total_size bytes"
+
+          # Warn if source is too large (>1MB for a proxy)
+          if [ $total_size -gt 1048576 ]; then
+            echo "⚠️ WARNING: Source size is large (>1MB). Consider optimizing."
+          elif [ $total_size -gt 524288 ]; then
+            echo "⚠️ Source size is moderate (>512KB). Monitor for growth."
+          else
+            echo "✅ Source size is reasonable"
+          fi
+
+          # Optional: Create compiled executable for size comparison
+          echo ""
+          echo "📦 Analyzing compiled executable size..."
+          if deno compile --output proxy-executable main.ts 2>/dev/null; then
+            executable_size=$(stat -f%z proxy-executable 2>/dev/null || stat -c%s proxy-executable)
+            echo "Compiled executable: $executable_size bytes"
+
+            # Compare source vs compiled size
+            ratio=$((executable_size / total_size))
+            echo "Compilation ratio: ${ratio}x (executable is ${ratio}x larger than source)"
+
+            # Clean up executable
+            rm -f proxy-executable
+          else
+            echo "⚠️ Could not create compiled executable for comparison"
+          fi
+
+          # Show top-level dependencies (Deno 2.5+ format)
+          echo ""
+          echo "Main dependencies:"
+          if [ -f "deno.json" ]; then
+            echo "From deno.json imports:"
+            grep -A 10 '"imports"' deno.json | grep -oE '(jsr:|npm:|https:)[^"]*' | sort | uniq || true
+          fi
+          echo "Direct imports in main.ts:"
+          grep -oE '(import.*from.*["'"'"'])(jsr:|npm:|https:)[^"'"'"']*' main.ts | cut -d'"' -f2 | sort | uniq || true
+
       - name: Memory usage estimation
         run: |
           echo "💾 Estimating memory usage patterns..."

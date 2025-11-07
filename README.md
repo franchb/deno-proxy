@@ -9,12 +9,12 @@ Deploy your own version of this example with a couple of clicks
 
 [![Deploy on Deno](https://deno.com/button)](https://app.deno.com/new?clone=https://github.com/franchb/deno-proxy)
 
-
 A security-hardened, multi-host, reverse proxy server built with [Deno 2.5+](https://deno.land) featuring modern permission sets, enhanced security controls, and comprehensive testing.
 
 This project provides a simple yet powerful proxy that forwards incoming requests to different target hosts based on the URL path. It's designed to be deployed as a standalone service, for example on [Deno Deploy](https://deno.com/deploy).
 
 It's an ideal solution for:
+
 - Bypassing CORS restrictions during development.
 - Consolidating multiple API endpoints under a single domain.
 - Adding a layer of security (rate limiting, header sanitization) in front of existing services.
@@ -41,12 +41,12 @@ The proxy extracts the target hostname from the first segment of the URL path.
 **Example Request:**
 `https://your-proxy-domain.deno.dev/mcp.exa.ai/some/path?query=1`
 
-1.  The proxy receives the request.
-2.  It extracts `mcp.exa.ai` as the target host.
-3.  It validates that `mcp.exa.ai` is a valid hostname and is present in the `ALLOWED_HOSTS` whitelist.
-4.  It reconstructs the target URL: `https://mcp.exa.ai/some/path?query=1`.
-5.  It forwards the original request (including method, body, and sanitized headers) to the target URL.
-6.  The response from the target is then streamed back to the original client.
+1. The proxy receives the request.
+2. It extracts `mcp.exa.ai` as the target host.
+3. It validates that `mcp.exa.ai` is a valid hostname and is present in the `ALLOWED_HOSTS` whitelist.
+4. It reconstructs the target URL: `https://mcp.exa.ai/some/path?query=1`.
+5. It forwards the original request (including method, body, and sanitized headers) to the target URL.
+6. The response from the target is then streamed back to the original client.
 
 ## Getting Started
 
@@ -56,93 +56,95 @@ The proxy extracts the target hostname from the first segment of the URL path.
 
 ### Running Locally
 
-1.  **Clone the repository:**
-    ```sh
-    git clone https://github.com/franchb/deno-proxy.git
-    cd deno-proxy
-    ```
+1. **Clone the repository:**
+   ```sh
+   git clone https://github.com/franchb/deno-proxy.git
+   cd deno-proxy
+   ```
 
-2.  **Set Environment Variables:**
-    The `ALLOWED_HOSTS` variable is **required**. This is a comma-separated list of host patterns that the proxy is allowed to connect to.
+2. **Set Environment Variables:**
+   The `ALLOWED_HOSTS` variable is **required**. This is a comma-separated list of host patterns that the proxy is allowed to connect to.
 
-    **On macOS/Linux:**
-    ```sh
-    export ALLOWED_HOSTS="api.github.com,*.deno.land"
-    ```
+   **On macOS/Linux:**
+   ```sh
+   export ALLOWED_HOSTS="api.github.com,*.deno.land"
+   ```
 
-    **On Windows (Command Prompt):**
-    ```cmd
-    set ALLOWED_HOSTS=api.github.com,*.deno.land
-    ```
+   **On Windows (Command Prompt):**
+   ```cmd
+   set ALLOWED_HOSTS=api.github.com,*.deno.land
+   ```
 
-3.  **Run the server:**
-    With Deno 2.5+, you can use modern permission sets for enhanced security:
+3. **Run the server:**
+   With Deno 2.5+, you can use modern permission sets for enhanced security:
 
-    ```sh
-    # Using permission sets (Deno 2.5+)
-    deno task start
-    
-    # Or with traditional permissions
-    deno run -P=proxy-server main.ts
-    
-    # Or with explicit permissions
-    deno run --allow-net --allow-env=ALLOWED_HOSTS,PROXY_TIMEOUT_MS,RATE_LIMIT_MAX_REQUESTS,RATE_LIMIT_WINDOW_MS main.ts
-    ```
+   ```sh
+   # Using permission sets (Deno 2.5+)
+   deno task start
 
-    The server will start on `http://localhost:8000` with enhanced TCP backlog for better performance.
+   # Or with traditional permissions
+   deno run -P=proxy-server main.ts
 
-4.  **Test the proxy:**
-    ```sh
-    # This will be proxied to https://api.github.com/users/denoland
-    curl http://localhost:8000/api.github.com/users/denoland
+   # Or with explicit permissions
+   deno run --allow-net --allow-env=ALLOWED_HOSTS,PROXY_TIMEOUT_MS,RATE_LIMIT_MAX_REQUESTS,RATE_LIMIT_WINDOW_MS main.ts
+   ```
 
-    # This will be blocked with a 403 Forbidden error
-    curl http://localhost:8000/google.com
-    ```
+   The server will start on `http://localhost:8000` with enhanced TCP backlog for better performance.
+
+4. **Test the proxy:**
+   ```sh
+   # This will be proxied to https://api.github.com/users/denoland
+   curl http://localhost:8000/api.github.com/users/denoland
+
+   # This will be blocked with a 403 Forbidden error
+   curl http://localhost:8000/google.com
+   ```
 
 ## Configuration
 
 All configuration is handled through environment variables, making it easy to deploy and manage.
 
-| Variable                  | Description                                                              | Default     | Required |
-| ------------------------- | ------------------------------------------------------------------------ | ----------- | -------- |
-| `ALLOWED_HOSTS`           | Comma-separated list of whitelisted host patterns. Wildcards (`*`) are supported for a single hostname segment. | `""`        | **Yes**  |
-| `PROXY_PORT`              | Port for the proxy server to listen on.                                  | `8000`      | No       |
-| `PROXY_TIMEOUT_MS`        | Timeout in milliseconds for requests to the target host.                 | `600000`    | No       |
-| `RATE_LIMIT_WINDOW_MS`    | The time window for rate limiting, in milliseconds.                      | `60000`     | No       |
-| `RATE_LIMIT_MAX_REQUESTS` | Maximum number of requests allowed from a single IP within the window.   | `100`       | No       |
+| Variable                  | Description                                                                                                     | Default  | Required |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------- | -------- | -------- |
+| `ALLOWED_HOSTS`           | Comma-separated list of whitelisted host patterns. Wildcards (`*`) are supported for a single hostname segment. | `""`     | **Yes**  |
+| `PROXY_PORT`              | Port for the proxy server to listen on.                                                                         | `8000`   | No       |
+| `PROXY_TIMEOUT_MS`        | Timeout in milliseconds for requests to the target host.                                                        | `600000` | No       |
+| `RATE_LIMIT_WINDOW_MS`    | The time window for rate limiting, in milliseconds.                                                             | `60000`  | No       |
+| `RATE_LIMIT_MAX_REQUESTS` | Maximum number of requests allowed from a single IP within the window.                                          | `100`    | No       |
 
 ## Deployment (Deno Deploy)
 
 This project is perfectly suited for [Deno Deploy](https://deno.com/deploy).
 
-1.  Fork this repository.
-2.  Create a new project on Deno Deploy and link it to your forked repository.
-3.  Choose the `proxy.ts` file as the entry point.
-4.  In the project settings on Deno Deploy, go to **Settings -> Environment Variables** and add your configuration. At a minimum, you must set `ALLOWED_HOSTS`.
+1. Fork this repository.
+2. Create a new project on Deno Deploy and link it to your forked repository.
+3. Choose the `proxy.ts` file as the entry point.
+4. In the project settings on Deno Deploy, go to **Settings -> Environment Variables** and add your configuration. At a minimum, you must set `ALLOWED_HOSTS`.
 
-    ![Deno Deploy Environment Variables](https://docs.deno.com/deploy/manual/assets/env_vars_add.png)
+   ![Deno Deploy Environment Variables](https://docs.deno.com/deploy/manual/assets/env_vars_add.png)
 
 ## Security Considerations
 
 This proxy has been built with several security measures in place.
 
--   **Whitelist is Paramount**: The `ALLOWED_HOSTS` list is your primary defense. Keep it as restrictive as possible. Avoid overly permissive patterns like `*` or `*.com`.
--   **Permission Sets**: Deno 2.5+ permission sets provide granular security. Use `-P=proxy-server` for production with minimal required permissions.
--   **Rate Limiting**: The default rate limits are sensible but should be tuned based on your expected traffic. Note that the in-memory rate limiter will reset with each deployment. For a more persistent solution, an external service (like a Redis-based limiter) would be needed.
--   **Enhanced Security**: Modern hostname validation supports Unicode domains and additional security headers are automatically added.
--   **Logging**: The proxy outputs enhanced structured JSON logs with Deno version info, stack traces, and detailed error context for better monitoring and debugging.
+- **Whitelist is Paramount**: The `ALLOWED_HOSTS` list is your primary defense. Keep it as restrictive as possible. Avoid overly permissive patterns like `*` or `*.com`.
+- **Permission Sets**: Deno 2.5+ permission sets provide granular security. Use `-P=proxy-server` for production with minimal required permissions.
+- **Rate Limiting**: The default rate limits are sensible but should be tuned based on your expected traffic. Note that the in-memory rate limiter will reset with each deployment. For a more persistent solution, an external service (like a Redis-based limiter) would be needed.
+- **Enhanced Security**: Modern hostname validation supports Unicode domains and additional security headers are automatically added.
+- **Logging**: The proxy outputs enhanced structured JSON logs with Deno version info, stack traces, and detailed error context for better monitoring and debugging.
 
 ## Continuous Integration
 
 This project uses GitHub Actions for automated testing and security scanning:
 
 ### Automated Testing
+
 - **Pull Request Testing**: Every PR is automatically tested against OpenAI's API
 - **Merge Testing**: Tests run on every merge to main branch
 - **Multiple Deno Versions**: Compatibility tested across Deno versions
 
 ### Security Scanning
+
 - **Weekly Security Scans**: Automated vulnerability detection
 - **Secret Detection**: Prevents hardcoded API keys and secrets
 - **Dependency Analysis**: Monitors for unsafe dependencies
@@ -196,6 +198,7 @@ deno task fmt
 ### Deno 2.5+ Features
 
 This project leverages modern Deno 2.5 features:
+
 - **Permission Sets**: Granular security configuration in `deno.json`
 - **Enhanced Testing**: Modern test APIs with setup/teardown hooks
 - **Lint Rules**: `no-unversioned-import` and `no-import-prefix` for better dependency management

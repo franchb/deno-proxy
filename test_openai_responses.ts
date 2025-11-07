@@ -1,4 +1,4 @@
-import { assertEquals, assertExists, assert } from "@std/assert";
+import { assert, assertEquals, assertExists } from "@std/assert";
 
 // Test configuration
 const PROXY_PORT = 8000;

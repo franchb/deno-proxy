@@ -5,6 +5,7 @@ This directory contains comprehensive tests for the Deno proxy server specifical
 ## Overview
 
 The test suite validates that the proxy correctly:
+
 - Forwards requests to OpenAI's API endpoints
 - Handles authentication properly
 - Maintains request/response integrity
@@ -71,12 +72,14 @@ deno task test
 ## Test Coverage
 
 ### Security Tests
+
 - ✅ **Host Whitelisting**: Verifies only `api.openai.com` is allowed
 - ✅ **Invalid Host Rejection**: Confirms malicious hostnames are blocked
 - ✅ **Rate Limiting**: Tests legitimate requests aren't throttled
 - ✅ **Authentication Handling**: Validates API key forwarding
 
 ### API Integration Tests
+
 - ✅ **List Responses**: Tests `GET /v1/responses`
 - ✅ **Create Response**: Tests `POST /v1/responses`
 - ✅ **Retrieve Response**: Tests `GET /v1/responses/{id}`
@@ -84,6 +87,7 @@ deno task test
 - ✅ **Models Endpoint**: Tests `GET /v1/models`
 
 ### Proxy Functionality Tests
+
 - ✅ **Request Forwarding**: Ensures requests reach OpenAI correctly
 - ✅ **Response Streaming**: Validates streaming response handling
 - ✅ **Header Processing**: Tests custom header forwarding
@@ -91,6 +95,7 @@ deno task test
 - ✅ **Error Propagation**: Verifies OpenAI errors are properly forwarded
 
 ### Comparison Tests
+
 - ✅ **Direct vs Proxy**: Compares responses from direct API calls vs proxy calls
 - ✅ **Response Integrity**: Ensures proxy doesn't modify response data
 - ✅ **Status Code Mapping**: Confirms HTTP status codes are preserved
@@ -114,17 +119,18 @@ deno task test
 
 The tests use these environment variables:
 
-| Variable | Purpose | Test Default |
-|----------|---------|--------------|
-| `OPENAI_API_KEY` | Authentication with OpenAI API | **Required** |
-| `ALLOWED_HOSTS` | Proxy host whitelist | `api.openai.com` |
-| `PROXY_TIMEOUT_MS` | Request timeout | `30000` (30s) |
-| `RATE_LIMIT_MAX_REQUESTS` | Rate limit threshold | `1000` |
-| `RATE_LIMIT_WINDOW_MS` | Rate limit window | `60000` (1min) |
+| Variable                  | Purpose                        | Test Default     |
+| ------------------------- | ------------------------------ | ---------------- |
+| `OPENAI_API_KEY`          | Authentication with OpenAI API | **Required**     |
+| `ALLOWED_HOSTS`           | Proxy host whitelist           | `api.openai.com` |
+| `PROXY_TIMEOUT_MS`        | Request timeout                | `30000` (30s)    |
+| `RATE_LIMIT_MAX_REQUESTS` | Rate limit threshold           | `1000`           |
+| `RATE_LIMIT_WINDOW_MS`    | Rate limit window              | `60000` (1min)   |
 
 ## Expected Results
 
 ### Successful Test Run
+
 ```
 OpenAI Responses API Proxy Tests
   ✅ Test proxy server is running
@@ -152,18 +158,23 @@ All tests passed!
 ### Common Issues
 
 **"OPENAI_API_KEY environment variable is required"**
+
 - Solution: Set your OpenAI API key: `export OPENAI_API_KEY=sk-your-key`
 
 **"Connection refused" or "Server not starting"**
+
 - Solution: Ensure port 8001 is available, or modify `PROXY_PORT` in test file
 
 **"403 Forbidden" from OpenAI**
+
 - Solution: Verify your API key is valid and has necessary permissions
 
 **"Rate limit exceeded"**
+
 - Solution: Wait a moment and retry, or check your OpenAI account usage
 
 **"Tests timing out"**
+
 - Solution: Increase `PROXY_TIMEOUT_MS` or check network connectivity
 
 ### Debug Mode
@@ -194,6 +205,7 @@ When adding new tests:
 ## API Cost Estimation
 
 The test suite makes approximately:
+
 - 10-15 API calls to OpenAI endpoints
 - Uses minimal tokens (20-100 per request)
 - Estimated cost: $0.01-0.05 per full test run
