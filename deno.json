@@ -1,6 +1,12 @@
 {
+  "compilerOptions": {
+    "lib": ["deno.window"],
+    "strict": true
+  },
   "tasks": {
-    "dev": "deno run --watch -RN main.ts"
+    "dev": "deno run --watch -RN main.ts",
+    "test": "deno test --allow-net --allow-env --allow-run test_openai_responses.ts",
+    "test-simple": "deno test --allow-net --allow-env --allow-run --no-check test_openai_responses_simple.ts"
   },
   "imports": {
     "@std/assert": "jsr:@std/assert@^1.0.15",

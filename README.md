@@ -2,6 +2,8 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Made with Deno](https://img.shields.io/badge/Made%20with-Deno-1f2023?logo=deno)](https://deno.land/)
+[![Test OpenAI Proxy](https://github.com/franchb/deno-proxy/actions/workflows/test-proxy.yml/badge.svg)](https://github.com/franchb/deno-proxy/actions/workflows/test-proxy.yml)
+[![Security & Quality Scan](https://github.com/franchb/deno-proxy/actions/workflows/security-scan.yml/badge.svg)](https://github.com/franchb/deno-proxy/actions/workflows/security-scan.yml)
 
 Deploy your own version of this example with a couple of clicks
 
@@ -118,6 +120,65 @@ This proxy has been built with several security measures in place.
 -   **Whitelist is Paramount**: The `ALLOWED_HOSTS` list is your primary defense. Keep it as restrictive as possible. Avoid overly permissive patterns like `*` or `*.com`.
 -   **Rate Limiting**: The default rate limits are sensible but should be tuned based on your expected traffic. Note that the in-memory rate limiter will reset with each deployment. For a more persistent solution, an external service (like a Redis-based limiter) would be needed.
 -   **Logging**: The proxy outputs structured JSON logs for security events (forbidden attempts, timeouts, errors). In a production environment, you should forward these logs to a dedicated logging service for monitoring and alerting.
+
+## Continuous Integration
+
+This project uses GitHub Actions for automated testing and security scanning:
+
+### Automated Testing
+- **Pull Request Testing**: Every PR is automatically tested against OpenAI's API
+- **Merge Testing**: Tests run on every merge to main branch
+- **Multiple Deno Versions**: Compatibility tested across Deno versions
+
+### Security Scanning
+- **Weekly Security Scans**: Automated vulnerability detection
+- **Secret Detection**: Prevents hardcoded API keys and secrets
+- **Dependency Analysis**: Monitors for unsafe dependencies
+- **Code Quality Checks**: Ensures best practices
+
+### Setting Up CI/CD
+
+To enable automated testing in your fork:
+
+1. **Add OpenAI API Key Secret**:
+   ```
+   GitHub Repository → Settings → Secrets and variables → Actions
+   → New repository secret
+   Name: OPENAI_API_KEY
+   Value: sk-your-openai-api-key-here
+   ```
+
+2. **Enable GitHub Actions**:
+   - Actions are enabled by default when you fork
+   - Tests will run automatically on PRs and pushes to main
+
+3. **View Test Results**:
+   - Check the Actions tab in your GitHub repository
+   - Green checkmarks indicate passing tests
+   - Red X marks indicate failures with detailed logs
+
+### Manual Testing Commands
+
+Run tests locally before pushing:
+
+```bash
+# Set your API key
+export OPENAI_API_KEY=sk-your-key-here
+
+# Run basic tests (recommended)
+deno task test-simple
+
+# Run comprehensive tests
+deno task test
+
+# Run security checks
+deno check --config deno.json main.ts
+```
+
+### CI/CD Workflow Files
+
+- `.github/workflows/test-proxy.yml` - Main test workflow
+- `.github/workflows/security-scan.yml` - Security and quality analysis
 
 ## License
 

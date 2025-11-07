@@ -1,0 +1,313 @@
+name: Security & Quality Scan
+
+on:
+  # Run on pull requests
+  pull_request:
+    branches: [ main ]
+  # Run on pushes to main
+  push:
+    branches: [ main ]
+  # Run weekly security scans
+  schedule:
+    - cron: '0 2 * * 1'  # Every Monday at 2 AM UTC
+  # Allow manual triggering
+  workflow_dispatch:
+
+jobs:
+  security-scan:
+    name: Security Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v1.x
+
+      - name: Run Deno security audit
+        run: |
+          echo "🔍 Running Deno security audit..."
+
+          # Check for known vulnerabilities in dependencies
+          deno info --json deno.json > deps_info.json
+
+          # Look for any problematic patterns
+          echo "Checking for security patterns..."
+
+          # Check for eval usage (dangerous)
+          if grep -r "eval(" --include="*.ts" --include="*.js" . ; then
+            echo "❌ WARNING: eval() usage detected - security risk!"
+            exit 1
+          fi
+
+          # Check for process spawning with user input
+          if grep -rn "Deno.run\|new Deno.Command" --include="*.ts" . | grep -v "test" ; then
+            echo "⚠️ Process spawning detected - ensure input validation"
+          fi
+
+          echo "✅ Basic security patterns check passed"
+
+      - name: Scan for hardcoded secrets
+        run: |
+          echo "🔐 Scanning for hardcoded secrets..."
+
+          # Check for common secret patterns
+          secrets_found=false
+
+          # API keys
+          if grep -r "sk-[a-zA-Z0-9]{48}" --exclude-dir=.git . ; then
+            echo "❌ Potential OpenAI API key found!"
+            secrets_found=true
+          fi
+
+          # Generic API patterns
+          if grep -ri "api[_-]key.*=.*['\"][a-zA-Z0-9]{20,}" --exclude-dir=.git --exclude="*.yml" --exclude="*.md" . ; then
+            echo "❌ Potential API key pattern found!"
+            secrets_found=true
+          fi
+
+          # Bearer tokens
+          if grep -r "Bearer [a-zA-Z0-9]{20,}" --exclude-dir=.git --exclude="*.yml" --exclude="*.md" . ; then
+            echo "❌ Potential bearer token found!"
+            secrets_found=true
+          fi
+
+          # Private keys
+          if grep -r "-----BEGIN.*PRIVATE KEY-----" --exclude-dir=.git . ; then
+            echo "❌ Private key found!"
+            secrets_found=true
+          fi
+
+          if [ "$secrets_found" = true ]; then
+            echo "❌ Hardcoded secrets detected! Remove them and use environment variables or secrets."
+            exit 1
+          fi
+
+          echo "✅ No hardcoded secrets detected"
+
+      - name: Code quality checks
+        run: |
+          echo "📊 Running code quality checks..."
+
+          # Check file structure
+          required_files=("main.ts" "deno.json" "README.md")
+          for file in "${required_files[@]}"; do
+            if [[ ! -f "$file" ]]; then
+              echo "❌ Required file missing: $file"
+              exit 1
+            fi
+          done
+
+          # Check TypeScript strict mode
+          if ! grep -q '"strict": true' deno.json; then
+            echo "⚠️ WARNING: TypeScript strict mode not enabled"
+          fi
+
+          # Check for TODO/FIXME comments
+          if grep -r "TODO\|FIXME\|XXX" --include="*.ts" --include="*.js" . ; then
+            echo "⚠️ Found TODO/FIXME comments - consider addressing before production"
+          fi
+
+          echo "✅ Code quality checks completed"
+
+      - name: Dependency analysis
+        run: |
+          echo "📦 Analyzing dependencies..."
+
+          # Show dependency tree
+          echo "Dependency information:"
+          deno info main.ts
+
+          # Check for external dependencies from untrusted sources
+          if grep -r "https://deno.land" deno.json; then
+            echo "✅ Using official Deno standard library"
+          fi
+
+          # Warn about non-JSR imports (less secure)
+          if grep -r "https://[^d][^e][^n][^o]" --include="*.ts" --include="*.json" . ; then
+            echo "⚠️ Non-official registry imports detected - verify trustworthiness"
+          fi
+
+          echo "✅ Dependency analysis completed"
+
+      - name: Environment security check
+        run: |
+          echo "🌍 Checking environment security..."
+
+          # Check that sensitive configs use environment variables
+          if ! grep -q "Deno.env.get" main.ts; then
+            echo "❌ No environment variable usage detected - configuration should be externalized"
+            exit 1
+          fi
+
+          # Verify ALLOWED_HOSTS is configurable
+          if ! grep -q "ALLOWED_HOSTS" main.ts; then
+            echo "❌ ALLOWED_HOSTS environment variable not found"
+            exit 1
+          fi
+
+          # Check for default fallbacks that might be insecure
+          if grep -q 'ALLOWED_HOSTS.*""' main.ts; then
+            echo "✅ Good: Empty default for ALLOWED_HOSTS prevents open proxy"
+          fi
+
+          echo "✅ Environment security checks passed"
+
+      - name: Rate limiting validation
+        run: |
+          echo "🚦 Validating rate limiting implementation..."
+
+          # Check that rate limiting is implemented
+          if ! grep -q "RATE_LIMIT" main.ts; then
+            echo "❌ Rate limiting not found - DoS protection missing"
+            exit 1
+          fi
+
+          # Check for reasonable defaults
+          if grep -q "RATE_LIMIT_MAX_REQUESTS.*1000" main.ts; then
+            echo "✅ Reasonable rate limit default found"
+          fi
+
+          echo "✅ Rate limiting validation passed"
+
+      - name: Input validation check
+        run: |
+          echo "🔍 Checking input validation..."
+
+          # Check for hostname validation
+          if ! grep -q "IS_VALID_HOSTNAME" main.ts; then
+            echo "❌ Hostname validation regex not found"
+            exit 1
+          fi
+
+          # Check for header sanitization
+          if ! grep -q "sanitize\|delete.*header\|hopByHop" main.ts; then
+            echo "❌ Header sanitization not implemented"
+            exit 1
+          fi
+
+          echo "✅ Input validation checks passed"
+
+      - name: Generate security report
+        if: always()
+        run: |
+          echo "## 🔐 Security Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "### ✅ Security Scan Passed!" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Your proxy implementation follows security best practices:" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "- 🔐 No hardcoded secrets detected" >> $GITHUB_STEP_SUMMARY
+            echo "- 🛡️ Input validation implemented" >> $GITHUB_STEP_SUMMARY
+            echo "- 🚦 Rate limiting configured" >> $GITHUB_STEP_SUMMARY
+            echo "- 🌍 Environment-based configuration" >> $GITHUB_STEP_SUMMARY
+            echo "- 📦 Dependencies from trusted sources" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "🎯 **Security posture is strong!**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ Security Issues Found" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Please review the security scan output above and address any issues." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Critical items to fix:" >> $GITHUB_STEP_SUMMARY
+            echo "- Remove any hardcoded secrets" >> $GITHUB_STEP_SUMMARY
+            echo "- Implement missing input validation" >> $GITHUB_STEP_SUMMARY
+            echo "- Add rate limiting if missing" >> $GITHUB_STEP_SUMMARY
+            echo "- Ensure environment-based configuration" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  performance-check:
+    name: Performance Analysis
+    runs-on: ubuntu-latest
+    needs: security-scan
+    if: success()
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v1.x
+
+      - name: Bundle size analysis
+        run: |
+          echo "📦 Analyzing bundle size..."
+
+          # Create a bundle to check size
+          deno bundle main.ts bundle.js
+
+          bundle_size=$(stat -f%z bundle.js 2>/dev/null || stat -c%s bundle.js)
+          echo "Bundle size: $bundle_size bytes"
+
+          # Warn if bundle is too large (>1MB for a proxy)
+          if [ $bundle_size -gt 1048576 ]; then
+            echo "⚠️ WARNING: Bundle size is large (>1MB). Consider optimizing."
+          else
+            echo "✅ Bundle size is reasonable"
+          fi
+
+          # Show top-level dependencies
+          echo "Main dependencies:"
+          grep -o "https://[^\"']*" main.ts | sort | uniq || true
+
+      - name: Memory usage estimation
+        run: |
+          echo "💾 Estimating memory usage patterns..."
+
+          # Check for potential memory leaks
+          if grep -r "setInterval\|setTimeout" --include="*.ts" . ; then
+            echo "⚠️ Timer usage detected - ensure proper cleanup"
+          fi
+
+          # Check for large data structures
+          if grep -r "new Map\|new Set\|new Array" --include="*.ts" . ; then
+            echo "💾 Data structures found - monitor for growth"
+          fi
+
+          echo "✅ Memory usage analysis completed"
+
+      - name: Startup time test
+        env:
+          OPENAI_API_KEY: "test-key-for-startup"
+        run: |
+          echo "⚡ Testing startup performance..."
+
+          start_time=$(date +%s%3N)
+
+          # Start server in background
+          deno run --allow-net --allow-env main.ts &
+          server_pid=$!
+
+          # Wait for it to be ready
+          sleep 3
+
+          # Test if it responds
+          if curl -f -m 5 http://localhost:8000/test.com/health 2>/dev/null; then
+            echo "Server responded (expected failure)"
+          fi
+
+          end_time=$(date +%s%3N)
+          startup_duration=$((end_time - start_time))
+
+          echo "Startup time: ${startup_duration}ms"
+
+          # Kill the server
+          kill $server_pid 2>/dev/null || true
+
+          # Warn if startup is too slow (>5 seconds)
+          if [ $startup_duration -gt 5000 ]; then
+            echo "⚠️ WARNING: Startup time is slow (>5s)"
+          else
+            echo "✅ Startup time is acceptable"
+          fi
