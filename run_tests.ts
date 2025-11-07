@@ -20,7 +20,6 @@ async function main() {
     }
 
     console.log("✅ OPENAI_API_KEY found");
-    console.log(`   Key preview: ${apiKey.substring(0, 7)}...${apiKey.substring(apiKey.length - 4)}`);
 
     // Set test environment variables
     const testEnv = {

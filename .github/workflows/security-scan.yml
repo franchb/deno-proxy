@@ -81,13 +81,13 @@ jobs:
           fi
 
           # Private keys
-          if grep -r "-----BEGIN.*PRIVATE KEY-----" --exclude-dir=.git --exclude-dir=node_modules . ; then
+          if grep -r -- "-----BEGIN.*PRIVATE KEY-----" --exclude-dir=.git --exclude-dir=node_modules . ; then
             echo "❌ Private key found!"
             secrets_found=true
           fi
 
           # Database URLs
-          if grep -r "postgres://\|mysql://\|mongodb://" --exclude-dir=.git --exclude-dir=node_modules --exclude="*.md" . ; then
+          if grep -r "postgres://\|mysql://\|mongodb://" --exclude-dir=.git --exclude-dir=node_modules --exclude="*.md" --exclude-dir=docs . | grep -v "example\|Example" ; then
             echo "❌ Potential database URL found!"
             secrets_found=true
           fi

@@ -8,7 +8,8 @@ const PROXY_PORT = parseInt(Deno.env.get("PROXY_PORT") ?? "8000", 10);
 const allowedHostsVar = Deno.env.get("ALLOWED_HOSTS") ?? "";
 const ALLOWED_HOST_PATTERNS = allowedHostsVar
   .split(",")
-  .filter((h) => h.trim());
+  .map((h) => h.trim())
+  .filter(Boolean);
 
 // Request timeout in milliseconds (default 10 minutes)
 const PROXY_TIMEOUT_MS = parseInt(
