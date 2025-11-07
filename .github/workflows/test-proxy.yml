@@ -203,7 +203,7 @@ jobs:
 
     strategy:
       matrix:
-        deno-version: ["2.5.x", "2.6.x", "canary"]
+        deno-version: ["2.5.x", "canary"]
 
     steps:
       - uses: actions/checkout@v4
