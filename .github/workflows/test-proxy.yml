@@ -3,10 +3,10 @@ name: Test OpenAI Proxy
 on:
   # Run on pull requests to main branch
   pull_request:
-    branches: [ main ]
+    branches: [main]
   # Run on pushes to main branch (merges)
   push:
-    branches: [ main ]
+    branches: [main]
   # Allow manual triggering
   workflow_dispatch:
 
@@ -23,17 +23,17 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Deno
-        uses: denoland/setup-deno@v1
+        uses: denoland/setup-deno@v2
         with:
-          deno-version: v1.x
+          deno-version: 2.5.x
 
       - name: Cache Deno dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cache/deno
-          key: deno-${{ hashFiles('deno.json', 'deno.lock') }}
+          key: deno-${{ runner.os }}-${{ hashFiles('deno.json', 'deno.lock') }}
           restore-keys: |
-            deno-
+            deno-${{ runner.os }}-
 
       - name: Verify Deno installation
         run: |
@@ -45,8 +45,8 @@ jobs:
       - name: Check TypeScript compilation
         run: |
           echo "🔍 Checking TypeScript compilation..."
-          deno check --config deno.json main.ts
-          deno check --config deno.json test_openai_responses_simple.ts
+          deno check main.ts
+          deno check test_openai_responses_simple.ts
 
       - name: Verify OpenAI API key is available
         env:
@@ -81,12 +81,11 @@ jobs:
           echo "  PROXY_TIMEOUT_MS: $PROXY_TIMEOUT_MS"
           echo ""
 
-          # Run the working test suite
+          # Run the working test suite using Deno 2.5 permission sets
           deno test \
             --allow-net \
             --allow-env \
             --allow-run \
-            --no-check \
             --reporter=pretty \
             test_openai_responses_simple.ts
 
@@ -112,7 +111,7 @@ jobs:
 
           echo "✅ All required files present"
 
-          # Validate deno.json structure
+          # Validate deno.json structure and permissions
           deno eval "
             const config = JSON.parse(await Deno.readTextFile('deno.json'));
             if (!config.tasks || !config.tasks['test-simple']) {
@@ -120,6 +119,14 @@ jobs:
               Deno.exit(1);
             }
             console.log('✅ deno.json configuration valid');
+
+            // Check for modern Deno 2.5+ features
+            if (config.permissions) {
+              console.log('✅ Permission sets found in config');
+            }
+            if (config.lint?.rules?.include?.includes('no-unversioned-import')) {
+              console.log('✅ Modern lint rules configured');
+            }
           "
 
       - name: Security validation
@@ -185,7 +192,6 @@ jobs:
             --allow-net \
             --allow-env \
             --allow-run \
-            --no-check \
             --reporter=pretty \
             test_openai_responses.ts || echo "⚠️ Comprehensive tests had issues (non-blocking)"
 
@@ -197,13 +203,13 @@ jobs:
 
     strategy:
       matrix:
-        deno-version: ['1.40.x', '1.41.x', 'canary']
+        deno-version: ["2.5.x", "2.6.x", "canary"]
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Setup Deno ${{ matrix.deno-version }}
-        uses: denoland/setup-deno@v1
+        uses: denoland/setup-deno@v2
         with:
           deno-version: ${{ matrix.deno-version }}
 
@@ -211,7 +217,7 @@ jobs:
         run: |
           echo "Testing with Deno ${{ matrix.deno-version }}"
           deno --version
-          deno check --config deno.json main.ts
+          deno check main.ts
 
       - name: Basic functionality test
         env:

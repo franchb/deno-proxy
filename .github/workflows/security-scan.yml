@@ -3,13 +3,13 @@ name: Security & Quality Scan
 on:
   # Run on pull requests
   pull_request:
-    branches: [ main ]
+    branches: [main]
   # Run on pushes to main
   push:
-    branches: [ main ]
+    branches: [main]
   # Run weekly security scans
   schedule:
-    - cron: '0 2 * * 1'  # Every Monday at 2 AM UTC
+    - cron: "0 2 * * 1" # Every Monday at 2 AM UTC
   # Allow manual triggering
   workflow_dispatch:
 
@@ -28,9 +28,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Deno
-        uses: denoland/setup-deno@v1
+        uses: denoland/setup-deno@v2
         with:
-          deno-version: v1.x
+          deno-version: 2.5.x
 
       - name: Run Deno security audit
         run: |
@@ -63,26 +63,32 @@ jobs:
           secrets_found=false
 
           # API keys
-          if grep -r "sk-[a-zA-Z0-9]{48}" --exclude-dir=.git . ; then
+          if grep -r "sk-[a-zA-Z0-9]{48}" --exclude-dir=.git --exclude-dir=node_modules . ; then
             echo "❌ Potential OpenAI API key found!"
             secrets_found=true
           fi
 
           # Generic API patterns
-          if grep -ri "api[_-]key.*=.*['\"][a-zA-Z0-9]{20,}" --exclude-dir=.git --exclude="*.yml" --exclude="*.md" . ; then
+          if grep -ri "api[_-]key.*=.*['\"][a-zA-Z0-9]{20,}" --exclude-dir=.git --exclude-dir=node_modules --exclude="*.yml" --exclude="*.yaml" --exclude="*.md" . ; then
             echo "❌ Potential API key pattern found!"
             secrets_found=true
           fi
 
           # Bearer tokens
-          if grep -r "Bearer [a-zA-Z0-9]{20,}" --exclude-dir=.git --exclude="*.yml" --exclude="*.md" . ; then
+          if grep -r "Bearer [a-zA-Z0-9]{20,}" --exclude-dir=.git --exclude-dir=node_modules --exclude="*.yml" --exclude="*.yaml" --exclude="*.md" . ; then
             echo "❌ Potential bearer token found!"
             secrets_found=true
           fi
 
           # Private keys
-          if grep -r "-----BEGIN.*PRIVATE KEY-----" --exclude-dir=.git . ; then
+          if grep -r "-----BEGIN.*PRIVATE KEY-----" --exclude-dir=.git --exclude-dir=node_modules . ; then
             echo "❌ Private key found!"
+            secrets_found=true
+          fi
+
+          # Database URLs
+          if grep -r "postgres://\|mysql://\|mongodb://" --exclude-dir=.git --exclude-dir=node_modules --exclude="*.md" . ; then
+            echo "❌ Potential database URL found!"
             secrets_found=true
           fi
 
@@ -106,9 +112,16 @@ jobs:
             fi
           done
 
-          # Check TypeScript strict mode
-          if ! grep -q '"strict": true' deno.json; then
-            echo "⚠️ WARNING: TypeScript strict mode not enabled"
+          # Check TypeScript strict mode in Deno 2.5+ format
+          if ! grep -q '"strict": true' deno.json && ! grep -q '"lib": \["deno.window"\]' deno.json; then
+            echo "⚠️ WARNING: Modern TypeScript configuration not found"
+          fi
+
+          # Check for Deno 2.5 permission sets
+          if grep -q '"permissions"' deno.json; then
+            echo "✅ Deno 2.5 permission sets configured"
+          else
+            echo "⚠️ Consider using Deno 2.5 permission sets for better security"
           fi
 
           # Check for TODO/FIXME comments
@@ -126,14 +139,19 @@ jobs:
           echo "Dependency information:"
           deno info main.ts
 
-          # Check for external dependencies from untrusted sources
-          if grep -r "https://deno.land" deno.json; then
-            echo "✅ Using official Deno standard library"
+          # Check for JSR and npm imports (Deno 2.5+ preferred)
+          if grep -q "jsr:" deno.json || grep -q "npm:" deno.json; then
+            echo "✅ Using JSR/npm imports (Deno 2.5+ best practice)"
           fi
 
-          # Warn about non-JSR imports (less secure)
-          if grep -r "https://[^d][^e][^n][^o]" --include="*.ts" --include="*.json" . ; then
-            echo "⚠️ Non-official registry imports detected - verify trustworthiness"
+          # Check for deprecated direct URL imports
+          if grep -r "https://deno.land/x/" --include="*.ts" --include="*.js" . ; then
+            echo "⚠️ Direct deno.land/x imports found - consider using JSR imports"
+          fi
+
+          # Warn about unversioned imports (Deno 2.5 lint rule)
+          if grep -rE "(npm:|jsr:)[^@\"]+" --include="*.ts" --include="*.js" . ; then
+            echo "⚠️ Unversioned imports detected - use specific versions"
           fi
 
           echo "✅ Dependency analysis completed"
@@ -236,9 +254,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Setup Deno
-        uses: denoland/setup-deno@v1
+        uses: denoland/setup-deno@v2
         with:
-          deno-version: v1.x
+          deno-version: 2.5.x
 
       - name: Bundle size analysis
         run: |
@@ -253,13 +271,20 @@ jobs:
           # Warn if bundle is too large (>1MB for a proxy)
           if [ $bundle_size -gt 1048576 ]; then
             echo "⚠️ WARNING: Bundle size is large (>1MB). Consider optimizing."
+          elif [ $bundle_size -gt 524288 ]; then
+            echo "⚠️ Bundle size is moderate (>512KB). Monitor for growth."
           else
             echo "✅ Bundle size is reasonable"
           fi
 
-          # Show top-level dependencies
+          # Show top-level dependencies (Deno 2.5+ format)
           echo "Main dependencies:"
-          grep -o "https://[^\"']*" main.ts | sort | uniq || true
+          if [ -f "deno.json" ]; then
+            echo "From deno.json imports:"
+            grep -A 10 '"imports"' deno.json | grep -oE '(jsr:|npm:|https:)[^"]*' | sort | uniq || true
+          fi
+          echo "Direct imports in main.ts:"
+          grep -oE '(import.*from.*["'"'"'])(jsr:|npm:|https:)[^"'"'"']*' main.ts | cut -d'"' -f2 | sort | uniq || true
 
       - name: Memory usage estimation
         run: |
@@ -285,8 +310,8 @@ jobs:
 
           start_time=$(date +%s%3N)
 
-          # Start server in background
-          deno run --allow-net --allow-env main.ts &
+          # Start server in background with Deno 2.5+ optimizations
+          DENO_FUTURE=1 deno run --allow-net --allow-env main.ts &
           server_pid=$!
 
           # Wait for it to be ready

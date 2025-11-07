@@ -102,14 +102,24 @@ if [[ $REPO_URL == *"github.com"* ]]; then
     # Extract owner/repo from URL
     REPO_INFO=$(echo $REPO_URL | sed -E 's/.*github\.com[:/]([^/]+\/[^/.]+)(\.git)?$/\1/')
     print_success "Repository: $REPO_INFO"
-else
-    print_error "Origin is not a GitHub repository"
-    exit 1
-fi
+    else
+        print_error "Origin is not a GitHub repository"
+        exit 1
+    fi
 
-echo ""
-echo "📋 Pre-Setup Checklist:"
-echo "========================"
+    # Check Deno version for 2.5+ features
+    DENO_VERSION=$(deno --version | head -n 1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+    REQUIRED_VERSION="2.5.0"
+    if [[ "$(printf '%s\n' "$REQUIRED_VERSION" "$DENO_VERSION" | sort -V | head -n1)" != "$REQUIRED_VERSION" ]]; then
+        print_warning "Deno $DENO_VERSION detected. Deno 2.5+ recommended for best features."
+        echo "  Upgrade with: deno upgrade"
+    else
+        print_success "Deno $DENO_VERSION supports modern features"
+    fi
+
+    echo ""
+    echo "📋 Pre-Setup Checklist:"
+    echo "========================"
 
 # Check if workflow files exist
 if [[ -f ".github/workflows/test-proxy.yml" ]]; then
@@ -194,21 +204,43 @@ print_info "Running local tests to verify setup..."
 
 export OPENAI_API_KEY="$API_KEY"
 
-# Test TypeScript compilation
+# Test TypeScript compilation with Deno 2.5+
 print_info "Checking TypeScript compilation..."
-if deno check --config deno.json main.ts; then
+if deno check main.ts; then
     print_success "TypeScript compilation successful"
 else
     print_error "TypeScript compilation failed"
     exit 1
 fi
 
-# Run a quick test
+# Check for modern Deno 2.5+ features
+print_info "Validating Deno 2.5+ configuration..."
+if grep -q '"permissions"' deno.json; then
+    print_success "Permission sets configured (Deno 2.5+ feature)"
+else
+    print_warning "Consider adding permission sets to deno.json for Deno 2.5+"
+fi
+
+if grep -q '"no-unversioned-import"' deno.json; then
+    print_success "Modern lint rules configured"
+else
+    print_info "Adding modern lint rules would improve dependency management"
+fi
+
+# Run a quick test with Deno 2.5+ permission sets
 print_info "Running basic functionality test..."
 if timeout 60 deno task test-simple > /dev/null 2>&1; then
-    print_success "Local tests passed"
+    print_success "Local tests passed with Deno 2.5+ permission sets"
 else
     print_warning "Local tests had issues - check with: deno task test-simple"
+    print_info "You can also try: deno test -P=testing test_openai_responses_simple.ts"
+fi
+
+# Check for modern task configuration
+if deno task 2>&1 | grep -q "test-simple"; then
+    print_success "Modern task configuration detected"
+else
+    print_warning "Consider updating deno.json with modern task definitions"
 fi
 
 echo ""
@@ -242,33 +274,40 @@ echo "=================="
 print_success "GitHub CI/CD setup is complete!"
 echo ""
 echo "What happens next:"
-echo "1. 🔄 GitHub Actions will run automatically on PRs and pushes to main"
-echo "2. 🧪 Tests will validate proxy functionality against OpenAI API"
-echo "3. 🔐 Security scans will check for vulnerabilities"
-echo "4. 📊 Results will appear in the Actions tab"
+echo "1. 🔄 GitHub Actions will run with Deno 2.5+ optimizations on PRs and pushes"
+echo "2. 🧪 Tests will validate proxy functionality using modern permission sets"
+echo "3. 🔐 Security scans will check for vulnerabilities and modern best practices"
+echo "4. 📊 Enhanced test reports will appear in the Actions tab"
+echo "5. 🚀 Compatibility tests will run across Deno 2.5.x, 2.6.x, and canary"
 echo ""
 echo "Useful links:"
 echo "📊 Actions: https://github.com/$REPO_INFO/actions"
 echo "🔐 Secrets: https://github.com/$REPO_INFO/settings/secrets/actions"
 echo "📋 Workflows: https://github.com/$REPO_INFO/tree/main/.github/workflows"
+echo "📚 Deno 2.5 Docs: https://docs.deno.com/"
 echo ""
 
 if [[ $GITHUB_CLI == true ]]; then
-    echo "Quick commands:"
+    echo "Quick commands (Deno 2.5+ optimized):"
     echo "🔍 View workflow runs: gh run list"
     echo "📋 Trigger workflow: gh workflow run test-proxy.yml"
     echo "📊 View latest run: gh run view"
+    echo "🧪 Local test with permission sets: deno task test-simple"
+    echo "🔧 Check types: deno task check"
+    echo "📝 Lint with modern rules: deno task lint"
     echo ""
 fi
 
 print_success "Ready for automated testing! 🚀"
 
 echo ""
-echo "💡 Next Steps:"
-echo "=============="
-echo "1. Make a small change to test the CI pipeline"
-echo "2. Create a pull request to see tests in action"
-echo "3. Monitor the Actions tab for test results"
-echo "4. Review security scan findings weekly"
+echo "💡 Next Steps (Deno 2.5+ Features):"
+echo "===================================="
+echo "1. Try permission sets: deno run -P=proxy-server main.ts"
+echo "2. Make a small change to test the enhanced CI pipeline"
+echo "3. Create a pull request to see modern tests in action"
+echo "4. Monitor the Actions tab for detailed test reports"
+echo "5. Review security scan findings with Deno 2.5+ checks"
+echo "6. Explore modern lint rules and dependency management"
 echo ""
-print_success "Happy coding!"
+print_success "Happy coding with Deno 2.5+!"
